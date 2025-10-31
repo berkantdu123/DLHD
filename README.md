@@ -16,6 +16,26 @@ This template includes 1 example plugin.
 3. Build or deploy your first plugin using:
    - Windows: `.\gradlew.bat ExampleProvider:make` or `.\gradlew.bat ExampleProvider:deployWithAdb`
    - Linux & Mac: `./gradlew ExampleProvider:make` or `./gradlew ExampleProvider:deployWithAdb`
+3. Build or deploy your first plugin using:
+   - Windows: `\.\gradlew.bat ExampleProvider:make` or `\.\gradlew.bat ExampleProvider:deployWithAdb`
+   - Linux & Mac: `./gradlew ExampleProvider:make` or `./gradlew ExampleProvider:deployWithAdb`
+
+---
+
+DaddyLive provider notes
+------------------------
+
+This repository includes a `DaddyLiveProvider` plugin ported from your Kodi addon. To build and test it:
+
+1. Open the workspace in Android Studio and import the project.
+2. Build the `DaddyLiveProvider` module (assembleDebug or make) and deploy to a device running CloudStream.
+3. If you don't have a gradle wrapper, use Android Studio to run the build or add a wrapper via `gradle wrapper`.
+
+Quick PowerShell steps (inside `DaddyLiveProvider`):
+
+if (Test-Path .\\gradlew) { .\\gradlew assembleDebug } else { Write-Host "Open in Android Studio or run 'gradle wrapper' to create a wrapper." }
+
+If you see runtime failures while resolving streams, copy the stacktrace and I'll iterate on the resolver.
 
 
 ## Granting All Files Access on Newer Android Devices

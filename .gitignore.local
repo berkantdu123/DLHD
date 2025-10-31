@@ -1,0 +1,9 @@
+# Ignore everything by default
+*
+
+# But keep this .gitignore
+!.gitignore
+
+# Allow the DaddyLiveProvider folder and everything underneath it
+!DaddyLiveProvider/
+!DaddyLiveProvider/**

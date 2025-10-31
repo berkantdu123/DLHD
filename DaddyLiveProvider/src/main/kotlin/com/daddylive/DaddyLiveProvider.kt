@@ -98,30 +98,46 @@ class DaddyLiveProvider : MainAPI() { // All providers must be an instance of Ma
         if (!data.startsWith("/") && !data.startsWith("http")) {
             // assume this is an event title
             val matches = getMatchLinks(data)
+            val found = mutableListOf<ExtractorLink>()
             for (pair in matches) {
                 val (title, link) = pair
                 val resolved = resolveLink(link)
                 if (resolved != null) {
-                    callback.invoke(ExtractorLink(source = this.name, name = title, url = resolved, referer = baseUrl, quality = Qualities.Unknown.value, isM3u8 = true))
-                    return true
+                    found.add(ExtractorLink(source = this.name, name = title, url = resolved, referer = baseUrl, quality = Qualities.Unknown.value, isM3u8 = true))
                 }
             }
+            // If multiple found, return them all; if none, return true to indicate we've handled the call
+            for (f in found) callback.invoke(f)
             return true
         }
 
-        val m3u8 = resolveLink(data)
-        if (m3u8 != null) {
-            callback.invoke(
-                ExtractorLink(
-                    source = this.name,
-                    name = this.name,
-                    url = m3u8,
-                    referer = baseUrl,
-                    quality = Qualities.Unknown.value,
-                    isM3u8 = true
-                )
-            )
+        // Direct link/path handling: try to resolve and return all available links
+        val candidateLinks = mutableListOf<String>()
+        // If the data is a JSON-like multiple links list (from Kodi), try to parse simple patterns
+        if (data.trim().startsWith("[[")) {
+            try {
+                // Expecting [[label, url], ...]
+                val j = org.json.JSONArray(data)
+                for (i in 0 until j.length()) {
+                    val pair = j.optJSONArray(i)
+                    if (pair != null && pair.length() > 1) {
+                        candidateLinks.add(pair.optString(1))
+                    }
+                }
+            } catch (_: Exception) {
+            }
+        } else {
+            candidateLinks.add(data)
         }
+
+        val found = mutableListOf<ExtractorLink>()
+        for (link in candidateLinks) {
+            val resolved = resolveLink(link)
+            if (resolved != null) {
+                found.add(ExtractorLink(source = this.name, name = this.name, url = resolved, referer = baseUrl, quality = Qualities.Unknown.value, isM3u8 = true))
+            }
+        }
+        for (f in found) callback.invoke(f)
         return true
     }
 
