@@ -8,6 +8,10 @@ import android.util.Base64
 import java.net.URLEncoder
 import org.json.JSONObject
 
+// Provide destructuring helpers for UShortArray if used elsewhere (component1/component2)
+operator fun UShortArray.component1(): UShort = this.getOrNull(0) ?: 0u
+operator fun UShortArray.component2(): UShort = this.getOrNull(1) ?: 0u
+
 class DaddyLiveProvider : MainAPI() { // All providers must be an instance of MainAPI
     // Use the exact base URL from the original Kodi plugin
     override var mainUrl = "https://dlhd.dad"
@@ -103,7 +107,19 @@ class DaddyLiveProvider : MainAPI() { // All providers must be an instance of Ma
                 val (title, link) = pair
                 val resolved = resolveLink(link)
                 if (resolved != null) {
-                    found.add(ExtractorLink(source = this.name, name = title, url = resolved, referer = baseUrl, quality = Qualities.Unknown.value, isM3u8 = true))
+                    // Newer CloudStream versions may deprecate the constructor; keep headers explicit and use numeric quality
+                    @Suppress("DEPRECATION")
+                    found.add(
+                        ExtractorLink(
+                            source = this.name,
+                            name = title,
+                            url = resolved,
+                            referer = baseUrl,
+                            quality = 0,
+                            isM3u8 = true,
+                            headers = mapOf("Referer" to baseUrl, "User-Agent" to userAgent)
+                        )
+                    )
                 }
             }
             // If multiple found, return them all; if none, return true to indicate we've handled the call
@@ -133,8 +149,19 @@ class DaddyLiveProvider : MainAPI() { // All providers must be an instance of Ma
         val found = mutableListOf<ExtractorLink>()
         for (link in candidateLinks) {
             val resolved = resolveLink(link)
-            if (resolved != null) {
-                found.add(ExtractorLink(source = this.name, name = this.name, url = resolved, referer = baseUrl, quality = Qualities.Unknown.value, isM3u8 = true))
+                if (resolved != null) {
+                    @Suppress("DEPRECATION")
+                    found.add(
+                        ExtractorLink(
+                            source = this.name,
+                            name = this.name,
+                            url = resolved,
+                            referer = baseUrl,
+                            quality = 0,
+                            isM3u8 = true,
+                            headers = mapOf("Referer" to baseUrl, "User-Agent" to userAgent)
+                        )
+                    )
             }
         }
         for (f in found) callback.invoke(f)
