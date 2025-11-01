@@ -35,7 +35,8 @@ class DaddyLiveProvider : MainAPI() { // All providers must be an instance of Ma
     override suspend fun getMainPage(page: Int, request: MainPageRequest): HomePageResponse {
         val channels = fetchChannels()
         val items = channels.map { channel ->
-            newMovieSearchResponse(
+            @Suppress("DEPRECATION")
+            MovieSearchResponse(
                 name = channel.title,
                 url = channel.link,
                 apiName = this.name,
@@ -43,7 +44,8 @@ class DaddyLiveProvider : MainAPI() { // All providers must be an instance of Ma
                 posterUrl = null
             )
         }
-        return newHomePageResponse(listOf(HomePageList("Channels", items)))
+        @Suppress("DEPRECATION")
+        return HomePageResponse(listOf(HomePageList("Channels", items)))
     }
 
     // This function gets called when you search for something
@@ -54,8 +56,9 @@ class DaddyLiveProvider : MainAPI() { // All providers must be an instance of Ma
 
         // Search channels
         channels.filter { it.title.contains(query, ignoreCase = true) }.forEach { channel ->
+            @Suppress("DEPRECATION")
             results.add(
-                newMovieSearchResponse(
+                MovieSearchResponse(
                     name = channel.title,
                     url = channel.link,
                     apiName = this.name,
@@ -67,8 +70,9 @@ class DaddyLiveProvider : MainAPI() { // All providers must be an instance of Ma
 
         // Search events (match title)
         events.filter { it.event.contains(query, ignoreCase = true) }.forEach { event ->
+            @Suppress("DEPRECATION")
             results.add(
-                newMovieSearchResponse(
+                MovieSearchResponse(
                     name = "${event.time} - ${event.event}",
                     url = event.event, // will be used to lookup channels with getMatchLinks
                     apiName = this.name,
@@ -83,7 +87,8 @@ class DaddyLiveProvider : MainAPI() { // All providers must be an instance of Ma
 
     override suspend fun load(url: String): LoadResponse {
         // For live streams, url is the stream path like /stream/stream-123.php
-        return newMovieLoadResponse(
+        @Suppress("DEPRECATION")
+        return MovieLoadResponse(
             name = "Live Stream",
             url = url,
             apiName = this.name,
