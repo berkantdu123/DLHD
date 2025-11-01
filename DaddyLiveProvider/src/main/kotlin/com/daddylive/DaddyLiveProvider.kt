@@ -35,17 +35,16 @@ class DaddyLiveProvider : MainAPI() { // All providers must be an instance of Ma
     override suspend fun getMainPage(page: Int, request: MainPageRequest): HomePageResponse {
         val channels = fetchChannels()
         val items = channels.map { channel ->
-            @Suppress("DEPRECATION")
-            MovieSearchResponse(
+            newMovieSearchResponse(
                 name = channel.title,
                 url = channel.link,
-                apiName = this.name,
                 type = TvType.Live,
-                posterUrl = null
-            )
+            ) {
+                this.apiName = this@DaddyLiveProvider.name
+                this.posterUrl = null
+            }
         }
-        @Suppress("DEPRECATION")
-        return HomePageResponse(listOf(HomePageList("Channels", items)))
+        return newHomePageResponse(listOf(HomePageList("Channels", items)))
     }
 
     // This function gets called when you search for something
@@ -56,29 +55,29 @@ class DaddyLiveProvider : MainAPI() { // All providers must be an instance of Ma
 
         // Search channels
         channels.filter { it.title.contains(query, ignoreCase = true) }.forEach { channel ->
-            @Suppress("DEPRECATION")
             results.add(
-                MovieSearchResponse(
+                newMovieSearchResponse(
                     name = channel.title,
                     url = channel.link,
-                    apiName = this.name,
                     type = TvType.Live,
-                    posterUrl = null
-                )
+                ) {
+                    this.apiName = this@DaddyLiveProvider.name
+                    this.posterUrl = null
+                }
             )
         }
 
         // Search events (match title)
         events.filter { it.event.contains(query, ignoreCase = true) }.forEach { event ->
-            @Suppress("DEPRECATION")
             results.add(
-                MovieSearchResponse(
+                newMovieSearchResponse(
                     name = "${event.time} - ${event.event}",
                     url = event.event, // will be used to lookup channels with getMatchLinks
-                    apiName = this.name,
                     type = TvType.Live,
-                    posterUrl = null
-                )
+                ) {
+                    this.apiName = this@DaddyLiveProvider.name
+                    this.posterUrl = null
+                }
             )
         }
 
@@ -87,14 +86,11 @@ class DaddyLiveProvider : MainAPI() { // All providers must be an instance of Ma
 
     override suspend fun load(url: String): LoadResponse {
         // For live streams, url is the stream path like /stream/stream-123.php
-        @Suppress("DEPRECATION")
-        return MovieLoadResponse(
+        return newMovieLoadResponse(
             name = "Live Stream",
             url = url,
-            apiName = this.name,
-            dataUrl = url,
             type = TvType.Live
-        )
+        ) { this.apiName = this@DaddyLiveProvider.name; this.dataUrl = url }
     }
 
     override suspend fun loadLinks(
@@ -112,23 +108,21 @@ class DaddyLiveProvider : MainAPI() { // All providers must be an instance of Ma
                 val (title, link) = pair
                 val resolved = resolveLink(link)
                 if (resolved != null) {
-                    // Newer CloudStream versions may deprecate the constructor; keep headers explicit and use numeric quality
-                    @Suppress("DEPRECATION")
-                    found.add(
-                        ExtractorLink(
+                    callback.invoke(
+                        newExtractorLink(
                             source = this.name,
                             name = title,
                             url = resolved,
                             referer = baseUrl,
-                            quality = 0,
-                            isM3u8 = true,
-                            headers = mapOf("Referer" to baseUrl, "User-Agent" to userAgent)
-                        )
+                            quality = Qualities.Unknown.value,
+                            isM3u8 = true
+                        ) {
+                            this.headers = mapOf("Referer" to baseUrl, "User-Agent" to userAgent)
+                        }
                     )
                 }
             }
             // If multiple found, return them all; if none, return true to indicate we've handled the call
-            for (f in found) callback.invoke(f)
             return true
         }
 
@@ -155,17 +149,17 @@ class DaddyLiveProvider : MainAPI() { // All providers must be an instance of Ma
         for (link in candidateLinks) {
             val resolved = resolveLink(link)
                 if (resolved != null) {
-                    @Suppress("DEPRECATION")
                     found.add(
-                        ExtractorLink(
+                        newExtractorLink(
                             source = this.name,
                             name = this.name,
                             url = resolved,
                             referer = baseUrl,
-                            quality = 0,
-                            isM3u8 = true,
-                            headers = mapOf("Referer" to baseUrl, "User-Agent" to userAgent)
-                        )
+                            quality = Qualities.Unknown.value,
+                            isM3u8 = true
+                        ) {
+                            this.headers = mapOf("Referer" to baseUrl, "User-Agent" to userAgent)
+                        }
                     )
             }
         }
