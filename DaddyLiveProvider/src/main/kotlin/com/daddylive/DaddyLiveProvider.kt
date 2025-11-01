@@ -3,6 +3,7 @@ package com.daddylive
 import com.lagradost.cloudstream3.*
 import com.lagradost.cloudstream3.utils.ExtractorLink
 import com.lagradost.cloudstream3.utils.loadExtractor
+import com.lagradost.cloudstream3.utils.newExtractorLink
 import org.jsoup.Jsoup
 import android.util.Base64
 import java.net.URLEncoder
@@ -38,11 +39,8 @@ class DaddyLiveProvider : MainAPI() { // All providers must be an instance of Ma
             newMovieSearchResponse(
                 name = channel.title,
                 url = channel.link,
-                type = TvType.Live,
-            ) {
-                this.apiName = this@DaddyLiveProvider.name
-                this.posterUrl = null
-            }
+                type = TvType.Live
+            )
         }
         return newHomePageResponse(listOf(HomePageList("Channels", items)))
     }
@@ -59,11 +57,8 @@ class DaddyLiveProvider : MainAPI() { // All providers must be an instance of Ma
                 newMovieSearchResponse(
                     name = channel.title,
                     url = channel.link,
-                    type = TvType.Live,
-                ) {
-                    this.apiName = this@DaddyLiveProvider.name
-                    this.posterUrl = null
-                }
+                    type = TvType.Live
+                )
             )
         }
 
@@ -73,11 +68,8 @@ class DaddyLiveProvider : MainAPI() { // All providers must be an instance of Ma
                 newMovieSearchResponse(
                     name = "${event.time} - ${event.event}",
                     url = event.event, // will be used to lookup channels with getMatchLinks
-                    type = TvType.Live,
-                ) {
-                    this.apiName = this@DaddyLiveProvider.name
-                    this.posterUrl = null
-                }
+                    type = TvType.Live
+                )
             )
         }
 
@@ -89,8 +81,9 @@ class DaddyLiveProvider : MainAPI() { // All providers must be an instance of Ma
         return newMovieLoadResponse(
             name = "Live Stream",
             url = url,
-            type = TvType.Live
-        ) { this.apiName = this@DaddyLiveProvider.name; this.dataUrl = url }
+            type = TvType.Live,
+            data = url
+        )
     }
 
     override suspend fun loadLinks(
@@ -103,26 +96,25 @@ class DaddyLiveProvider : MainAPI() { // All providers must be an instance of Ma
         if (!data.startsWith("/") && !data.startsWith("http")) {
             // assume this is an event title
             val matches = getMatchLinks(data)
-            val found = mutableListOf<ExtractorLink>()
             for (pair in matches) {
                 val (title, link) = pair
                 val resolved = resolveLink(link)
                 if (resolved != null) {
+                    // Use newExtractorLink helper with initializer
                     callback.invoke(
                         newExtractorLink(
                             source = this.name,
                             name = title,
-                            url = resolved,
-                            referer = baseUrl,
-                            quality = Qualities.Unknown.value,
-                            isM3u8 = true
+                            url = resolved
                         ) {
+                            this.referer = baseUrl
+                            this.quality = 0
                             this.headers = mapOf("Referer" to baseUrl, "User-Agent" to userAgent)
+                            this.isM3u8 = true
                         }
                     )
                 }
             }
-            // If multiple found, return them all; if none, return true to indicate we've handled the call
             return true
         }
 
@@ -148,22 +140,22 @@ class DaddyLiveProvider : MainAPI() { // All providers must be an instance of Ma
         val found = mutableListOf<ExtractorLink>()
         for (link in candidateLinks) {
             val resolved = resolveLink(link)
-                if (resolved != null) {
-                    found.add(
-                        newExtractorLink(
-                            source = this.name,
-                            name = this.name,
-                            url = resolved,
-                            referer = baseUrl,
-                            quality = Qualities.Unknown.value,
-                            isM3u8 = true
-                        ) {
-                            this.headers = mapOf("Referer" to baseUrl, "User-Agent" to userAgent)
-                        }
-                    )
+            if (resolved != null) {
+                // Use newExtractorLink helper with initializer
+                callback.invoke(
+                    newExtractorLink(
+                        source = this.name,
+                        name = this.name,
+                        url = resolved
+                    ) {
+                        this.referer = baseUrl
+                        this.quality = 0
+                        this.headers = mapOf("Referer" to baseUrl, "User-Agent" to userAgent)
+                        this.isM3u8 = true
+                    }
+                )
             }
         }
-        for (f in found) callback.invoke(f)
         return true
     }
 
