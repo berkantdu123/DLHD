@@ -32,6 +32,11 @@ class DaddyLiveProvider : MainAPI() { // All providers must be an instance of Ma
     private val channelsUrl = "$baseUrl/24-7-channels.php"
     private val scheduleUrl = "$baseUrl/index.php"
     private val userAgent = "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Mobile Safari/537.36"
+    private val sharedHeaders = mutableMapOf(
+        "User-Agent" to userAgent,
+        "Referer" to "$baseUrl/",
+        "Origin" to "$baseUrl/"
+    )
     // In-memory cache of schedule events (refreshed per fetch)
     private var cachedSchedule: List<ScheduleEvent>? = null
 
@@ -348,23 +353,26 @@ class DaddyLiveProvider : MainAPI() { // All providers must be an instance of Ma
         return null
     }
 
-    private fun defaultHeaders(referer: String? = null): Map<String, String> {
-        val ref = referer ?: "$baseUrl/"
-        return mapOf(
-            "User-Agent" to userAgent,
-            "Referer" to ref,
-            "Origin" to ref
-        )
-    }
-
     private suspend fun getWithHeaders(
         url: String,
         referer: String? = null,
         timeout: Int = 30
     ) = app.get(
         url,
-        referer = referer ?: "$baseUrl/",
-        headers = defaultHeaders(referer),
+        referer = sharedHeaders.apply {
+            val ref = referer?.ifBlank { null }
+            if (ref != null) {
+                this["Referer"] = ref
+                this["Origin"] = ref
+            }
+            if (!this.containsKey("Referer")) {
+                this["Referer"] = "$baseUrl/"
+            }
+            if (!this.containsKey("Origin")) {
+                this["Origin"] = "$baseUrl/"
+            }
+        }["Referer"],
+        headers = sharedHeaders,
         timeout = timeout.toLong()
     )
 
