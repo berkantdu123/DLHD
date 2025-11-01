@@ -359,7 +359,8 @@ class DaddyLiveProvider : MainAPI() { // All providers must be an instance of Ma
             url = streamUrl,
             referer = refererHeader,
             quality = Qualities.Unknown.value,
-            headers = headerMap,
+            isM3u8 = true,
+            headers = headerMap.toMap(),
             type = ExtractorLinkType.M3U8
         )
     }
