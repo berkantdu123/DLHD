@@ -5,7 +5,6 @@ import com.lagradost.cloudstream3.utils.ExtractorLink
 import com.lagradost.cloudstream3.utils.ExtractorLinkType
 import com.lagradost.cloudstream3.utils.Qualities
 import com.lagradost.cloudstream3.utils.loadExtractor
-import com.lagradost.cloudstream3.utils.newExtractorLink
 import org.jsoup.Jsoup
 import android.util.Base64
 import java.net.URLEncoder
@@ -354,17 +353,16 @@ class DaddyLiveProvider : MainAPI() { // All providers must be an instance of Ma
         headerMap.putIfAbsent("User-Agent", userAgent)
         val refererHeader = headerMap["Referer"] ?: baseUrl
         headerMap.putIfAbsent("Referer", refererHeader)
-        return runBlockingSafe {
-            newExtractorLink(
-                source = this@DaddyLiveProvider.name,
-                name = displayName,
-                url = streamUrl,
-                referer = refererHeader,
-                quality = Qualities.Unknown.value,
-                headers = headerMap,
-                type = ExtractorLinkType.M3U8
-            )
-        }
+        return ExtractorLink(
+            source = this.name,
+            name = displayName,
+            url = streamUrl,
+            referer = refererHeader,
+            quality = Qualities.Unknown.value,
+            headers = headerMap,
+            type = ExtractorLinkType.M3U8,
+            isM3u8 = true
+        )
     }
 
     private fun splitResolvedLink(resolved: String): Pair<String, Map<String, String>> {
@@ -383,11 +381,6 @@ class DaddyLiveProvider : MainAPI() { // All providers must be an instance of Ma
 
     private fun base64Decode(str: String): String {
         return String(Base64.decode(str, Base64.DEFAULT))
-    }
-
-    // Helper to run a suspend block from non-suspend context
-    private fun <T> runBlockingSafe(block: suspend () -> T): T {
-        return kotlinx.coroutines.runBlocking { block() }
     }
 
     data class Channel(val title: String, val link: String)
