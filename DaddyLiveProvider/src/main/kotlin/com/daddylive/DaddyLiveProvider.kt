@@ -2,8 +2,10 @@ package com.daddylive
 
 import com.lagradost.cloudstream3.*
 import com.lagradost.cloudstream3.utils.ExtractorLink
+import com.lagradost.cloudstream3.utils.ExtractorLinkType
 import com.lagradost.cloudstream3.utils.Qualities
 import com.lagradost.cloudstream3.utils.loadExtractor
+import com.lagradost.cloudstream3.utils.newExtractorLink
 import org.jsoup.Jsoup
 import android.util.Base64
 import java.net.URLEncoder
@@ -346,21 +348,22 @@ class DaddyLiveProvider : MainAPI() { // All providers must be an instance of Ma
         return null
     }
 
-    private fun buildExtractorLink(displayName: String, resolved: String): ExtractorLink {
+    private suspend fun buildExtractorLink(displayName: String, resolved: String): ExtractorLink {
         val (streamUrl, extraHeaders) = splitResolvedLink(resolved)
         val headerMap = extraHeaders.toMutableMap()
         headerMap.putIfAbsent("User-Agent", userAgent)
         val refererHeader = headerMap["Referer"] ?: baseUrl
         headerMap.putIfAbsent("Referer", refererHeader)
-        return ExtractorLink(
+        return newExtractorLink(
             source = this.name,
             name = displayName,
             url = streamUrl,
-            referer = refererHeader,
-            quality = Qualities.Unknown.value,
-            isM3u8 = true,
-            headers = headerMap.toMap()
-        )
+            type = ExtractorLinkType.M3U8
+        ) {
+            this.referer = refererHeader
+            this.quality = Qualities.Unknown.value
+            this.headers = headerMap.toMap()
+        }
     }
 
     private fun splitResolvedLink(resolved: String): Pair<String, Map<String, String>> {
