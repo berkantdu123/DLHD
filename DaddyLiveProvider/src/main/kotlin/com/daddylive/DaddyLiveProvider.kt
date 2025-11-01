@@ -2,7 +2,6 @@ package com.daddylive
 
 import com.lagradost.cloudstream3.*
 import com.lagradost.cloudstream3.utils.ExtractorLink
-import com.lagradost.cloudstream3.utils.ExtractorLinkType
 import com.lagradost.cloudstream3.utils.Qualities
 import com.lagradost.cloudstream3.utils.loadExtractor
 import org.jsoup.Jsoup
@@ -360,8 +359,7 @@ class DaddyLiveProvider : MainAPI() { // All providers must be an instance of Ma
             referer = refererHeader,
             quality = Qualities.Unknown.value,
             isM3u8 = true,
-            headers = headerMap.toMap(),
-            type = ExtractorLinkType.M3U8
+            headers = headerMap.toMap()
         )
     }
 
