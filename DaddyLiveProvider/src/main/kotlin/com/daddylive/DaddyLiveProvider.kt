@@ -35,7 +35,7 @@ class DaddyLiveProvider : MainAPI() { // All providers must be an instance of Ma
     override suspend fun getMainPage(page: Int, request: MainPageRequest): HomePageResponse {
         val channels = fetchChannels()
         val items = channels.map { channel ->
-            MovieSearchResponse(
+            newMovieSearchResponse(
                 name = channel.title,
                 url = channel.link,
                 apiName = this.name,
@@ -43,7 +43,7 @@ class DaddyLiveProvider : MainAPI() { // All providers must be an instance of Ma
                 posterUrl = null
             )
         }
-        return HomePageResponse(listOf(HomePageList("Channels", items)))
+        return newHomePageResponse(listOf(HomePageList("Channels", items)))
     }
 
     // This function gets called when you search for something
@@ -55,7 +55,7 @@ class DaddyLiveProvider : MainAPI() { // All providers must be an instance of Ma
         // Search channels
         channels.filter { it.title.contains(query, ignoreCase = true) }.forEach { channel ->
             results.add(
-                MovieSearchResponse(
+                newMovieSearchResponse(
                     name = channel.title,
                     url = channel.link,
                     apiName = this.name,
@@ -68,7 +68,7 @@ class DaddyLiveProvider : MainAPI() { // All providers must be an instance of Ma
         // Search events (match title)
         events.filter { it.event.contains(query, ignoreCase = true) }.forEach { event ->
             results.add(
-                MovieSearchResponse(
+                newMovieSearchResponse(
                     name = "${event.time} - ${event.event}",
                     url = event.event, // will be used to lookup channels with getMatchLinks
                     apiName = this.name,
@@ -83,7 +83,7 @@ class DaddyLiveProvider : MainAPI() { // All providers must be an instance of Ma
 
     override suspend fun load(url: String): LoadResponse {
         // For live streams, url is the stream path like /stream/stream-123.php
-        return MovieLoadResponse(
+        return newMovieLoadResponse(
             name = "Live Stream",
             url = url,
             apiName = this.name,
@@ -237,6 +237,23 @@ class DaddyLiveProvider : MainAPI() { // All providers must be an instance of Ma
         }
         cachedSchedule = events
         return events
+    }
+
+    // Given an event title, return a list of (channelName, streamPath) pairs
+    private suspend fun getMatchLinks(eventTitle: String): List<Pair<String, String>> {
+        val events = fetchScheduleEvents()
+        val matches = events.filter {
+            it.event.equals(eventTitle, ignoreCase = true) || it.event.contains(eventTitle, ignoreCase = true)
+        }
+        val results = mutableListOf<Pair<String, String>>()
+        for (m in matches) {
+            for (ch in m.channels) {
+                if (ch.channelId.isNotBlank()) {
+                    results.add(Pair(ch.channelName, "/stream/stream-${ch.channelId}.php"))
+                }
+            }
+        }
+        return results
     }
 
     // removed duplicate stub
