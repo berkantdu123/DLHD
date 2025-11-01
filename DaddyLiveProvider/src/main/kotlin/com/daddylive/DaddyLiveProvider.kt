@@ -365,7 +365,7 @@ class DaddyLiveProvider : MainAPI() { // All providers must be an instance of Ma
         url,
         referer = referer ?: "$baseUrl/",
         headers = defaultHeaders(referer),
-        timeout = timeout
+        timeout = timeout.toLong()
     )
 
     private suspend fun buildExtractorLink(displayName: String, resolved: String): ExtractorLink {
