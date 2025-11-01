@@ -2,6 +2,8 @@ package com.daddylive
 
 import com.lagradost.cloudstream3.*
 import com.lagradost.cloudstream3.utils.ExtractorLink
+import com.lagradost.cloudstream3.utils.ExtractorLinkType
+import com.lagradost.cloudstream3.utils.Qualities
 import com.lagradost.cloudstream3.utils.loadExtractor
 import com.lagradost.cloudstream3.utils.newExtractorLink
 import org.jsoup.Jsoup
@@ -92,71 +94,54 @@ class DaddyLiveProvider : MainAPI() { // All providers must be an instance of Ma
         subtitleCallback: (SubtitleFile) -> Unit,
         callback: (ExtractorLink) -> Unit
     ): Boolean {
-        // If data refers to an event name, try getMatchLinks to produce a stream list
         if (!data.startsWith("/") && !data.startsWith("http")) {
-            // assume this is an event title
             val matches = getMatchLinks(data)
-            for (pair in matches) {
-                val (title, link) = pair
-                val resolved = resolveLink(link)
-                if (resolved != null) {
-                    // Use newExtractorLink helper with initializer
-                    callback.invoke(
-                        newExtractorLink(
-                            source = this.name,
-                            name = title,
-                            url = resolved
-                        ) {
-                            this.referer = baseUrl
-                            this.quality = 0
-                            this.headers = mapOf("Referer" to baseUrl, "User-Agent" to userAgent)
-                            this.isM3u8 = true
-                        }
-                    )
-                }
+            var handledEvent = false
+            for ((title, link) in matches) {
+                val resolved = resolveLink(link) ?: continue
+                callback.invoke(buildExtractorLink(title, resolved))
+                handledEvent = true
             }
-            return true
+            if (handledEvent) return true
         }
 
-        // Direct link/path handling: try to resolve and return all available links
         val candidateLinks = mutableListOf<String>()
-        // If the data is a JSON-like multiple links list (from Kodi), try to parse simple patterns
-        if (data.trim().startsWith("[[")) {
+        val trimmedData = data.trim()
+        if (trimmedData.startsWith("[[")) {
             try {
-                // Expecting [[label, url], ...]
-                val j = org.json.JSONArray(data)
-                for (i in 0 until j.length()) {
-                    val pair = j.optJSONArray(i)
-                    if (pair != null && pair.length() > 1) {
-                        candidateLinks.add(pair.optString(1))
+                val json = org.json.JSONArray(trimmedData)
+                for (i in 0 until json.length()) {
+                    val arr = json.optJSONArray(i)
+                    if (arr != null && arr.length() > 1) {
+                        candidateLinks.add(arr.optString(1))
                     }
                 }
             } catch (_: Exception) {
             }
-        } else {
+        } else if (data.startsWith("/") || data.startsWith("http", ignoreCase = true)) {
             candidateLinks.add(data)
         }
 
-        val found = mutableListOf<ExtractorLink>()
+        var handled = false
         for (link in candidateLinks) {
             val resolved = resolveLink(link)
             if (resolved != null) {
-                // Use newExtractorLink helper with initializer
-                callback.invoke(
-                    newExtractorLink(
-                        source = this.name,
-                        name = this.name,
-                        url = resolved
-                    ) {
-                        this.referer = baseUrl
-                        this.quality = 0
-                        this.headers = mapOf("Referer" to baseUrl, "User-Agent" to userAgent)
-                        this.isM3u8 = true
-                    }
-                )
+                callback.invoke(buildExtractorLink(this.name, resolved))
+                handled = true
+                continue
             }
+
+            val absoluteLink = when {
+                link.startsWith("http", ignoreCase = true) -> link
+                link.startsWith("/", ignoreCase = true) -> "$baseUrl$link"
+                else -> "$baseUrl/$link"
+            }
+
+            val loaded = loadExtractor(absoluteLink, subtitleCallback, callback)
+            if (loaded) handled = true
         }
-        return true
+
+        return handled
     }
 
     private suspend fun fetchChannels(): List<Channel> {
@@ -361,6 +346,37 @@ class DaddyLiveProvider : MainAPI() { // All providers must be an instance of Ma
             // ignore
         }
         return null
+    }
+
+    private fun buildExtractorLink(displayName: String, resolved: String): ExtractorLink {
+        val (streamUrl, extraHeaders) = splitResolvedLink(resolved)
+        val headerMap = extraHeaders.toMutableMap()
+        headerMap.putIfAbsent("User-Agent", userAgent)
+        val refererHeader = headerMap["Referer"] ?: baseUrl
+        headerMap.putIfAbsent("Referer", refererHeader)
+        return newExtractorLink(
+            source = this.name,
+            name = displayName,
+            url = streamUrl,
+            referer = refererHeader,
+            quality = Qualities.Unknown.value,
+            headers = headerMap,
+            type = ExtractorLinkType.M3U8
+        )
+    }
+
+    private fun splitResolvedLink(resolved: String): Pair<String, Map<String, String>> {
+        val segments = resolved.split("|", limit = 2)
+        if (segments.size == 1) return segments[0] to emptyMap()
+        val headers = mutableMapOf<String, String>()
+        segments[1].split("&").forEach { fragment ->
+            if (fragment.isBlank()) return@forEach
+            val kv = fragment.split("=", limit = 2)
+            if (kv.size == 2) {
+                headers[kv[0]] = kv[1]
+            }
+        }
+        return segments[0] to headers
     }
 
     private fun base64Decode(str: String): String {
