@@ -146,7 +146,7 @@ class DaddyLiveProvider : MainAPI() { // All providers must be an instance of Ma
 
     private suspend fun fetchChannels(): List<Channel> {
         return try {
-            val response = app.get(channelsUrl)
+            val response = getWithHeaders(channelsUrl)
             val soup = Jsoup.parse(response.text)
             val channels = mutableListOf<Channel>()
             soup.select(".card").forEach { card ->
@@ -161,7 +161,7 @@ class DaddyLiveProvider : MainAPI() { // All providers must be an instance of Ma
         } catch (e: Exception) {
             // Fallback to old URL
             try {
-                val response = app.get("$baseUrl/24-7-channels.php") // Assuming old is same
+                val response = getWithHeaders("$baseUrl/24-7-channels.php") // Assuming old is same
                 val soup = Jsoup.parse(response.text)
                 val channels = mutableListOf<Channel>()
                 soup.select("a").drop(8).forEach { a ->
@@ -183,7 +183,7 @@ class DaddyLiveProvider : MainAPI() { // All providers must be an instance of Ma
         cachedSchedule?.let { return it }
         val events = mutableListOf<ScheduleEvent>()
         try {
-            val response = app.get(scheduleUrl)
+            val response = getWithHeaders(scheduleUrl)
             val soup = Jsoup.parse(response.text)
             val days = soup.select(".schedule__day")
             for (day in days) {
@@ -250,14 +250,14 @@ class DaddyLiveProvider : MainAPI() { // All providers must be an instance of Ma
 
             for (candidate in candidates) {
                 try {
-                    val resp = app.get(candidate, referer = baseUrl, timeout = 30)
+                    val resp = getWithHeaders(candidate, timeout = 30)
                     val soup = Jsoup.parse(resp.text)
                     val iframe = soup.selectFirst("iframe#thatframe, iframe.video, iframe") ?: continue
                     var url2 = iframe.attr("src")
 
                     // Follow wrappers (lovecdn/wikisport)
                     if (url2.contains("wikisport") || url2.contains("lovecdn")) {
-                        val r2 = app.get(url2, referer = candidate, timeout = 60)
+                        val r2 = getWithHeaders(url2, referer = candidate, timeout = 60)
                         val s2 = Jsoup.parse(r2.text)
                         val iframe2 = s2.selectFirst("iframe") ?: continue
                         url2 = iframe2.attr("src")
@@ -268,7 +268,7 @@ class DaddyLiveProvider : MainAPI() { // All providers must be an instance of Ma
                     }
 
                     // Fetch the target and inspect
-                    val targetResp = app.get(url2, referer = candidate)
+                    val targetResp = getWithHeaders(url2, referer = candidate)
                     val text = targetResp.text
 
                     // newkso / top2 logic
@@ -286,9 +286,9 @@ class DaddyLiveProvider : MainAPI() { // All providers must be an instance of Ma
                         val sc = bx.map { (it xor 73).toChar() }.joinToString("")
                         val host = "https://top2new.newkso.ru/"
                         val authUrl = "$host$sc?channel_id=${URLEncoder.encode(channelKey, "UTF-8")}&ts=$ts&rnd=$rnd&sig=$sig"
-                        app.get(authUrl, referer = url2)
+                        getWithHeaders(authUrl, referer = url2)
                         val serverLookupUrl = "https://${java.net.URI(url2).host}/server_lookup.php?channel_id=$channelKey"
-                        val serverResponse = app.get(serverLookupUrl, referer = url2)
+                        val serverResponse = getWithHeaders(serverLookupUrl, referer = url2)
                         val serverJson = serverResponse.parsedSafe<Map<String, String>>() ?: return null
                         val serverKey = serverJson["server_key"] ?: return null
                         val m3u8 = if (serverKey == "top1/cdn") {
@@ -309,7 +309,7 @@ class DaddyLiveProvider : MainAPI() { // All providers must be an instance of Ma
                         val initUrlRegex = Regex("initUrl\\s*=\\s*\"([^\"]+)\"")
                         val initUrl = initUrlRegex.find(decoded)?.groupValues?.get(1)
                         if (initUrl != null) {
-                            val r = app.get(initUrl)
+                            val r = getWithHeaders(initUrl)
                             val m = String(Base64.decode(r.text.toByteArray(), Base64.DEFAULT))
                             val referer = "https://${java.net.URI(url2).host}"
                             return "$m|Referer=$url2&Connection=Keep-Alive&User-Agent=$userAgent"
@@ -348,12 +348,33 @@ class DaddyLiveProvider : MainAPI() { // All providers must be an instance of Ma
         return null
     }
 
+    private fun defaultHeaders(referer: String? = null): Map<String, String> {
+        val ref = referer ?: "$baseUrl/"
+        return mapOf(
+            "User-Agent" to userAgent,
+            "Referer" to ref,
+            "Origin" to ref
+        )
+    }
+
+    private suspend fun getWithHeaders(
+        url: String,
+        referer: String? = null,
+        timeout: Int = 30
+    ) = app.get(
+        url,
+        referer = referer ?: "$baseUrl/",
+        headers = defaultHeaders(referer),
+        timeout = timeout
+    )
+
     private suspend fun buildExtractorLink(displayName: String, resolved: String): ExtractorLink {
         val (streamUrl, extraHeaders) = splitResolvedLink(resolved)
         val headerMap = extraHeaders.toMutableMap()
         headerMap.putIfAbsent("User-Agent", userAgent)
-        val refererHeader = headerMap["Referer"] ?: baseUrl
+        val refererHeader = headerMap["Referer"] ?: "$baseUrl/"
         headerMap.putIfAbsent("Referer", refererHeader)
+        headerMap.putIfAbsent("Origin", refererHeader)
         return newExtractorLink(
             source = this.name,
             name = displayName,
