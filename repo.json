@@ -1,0 +1,8 @@
+{
+    "name": "Daddylive Stream",
+    "description": "Cloudstream Daddylive Plugin Repository",
+    "manifestVersion": 1,
+    "pluginLists": [
+      "https://raw.githubusercontent.com/berkantdu123/DLHD/builds/plugins.json"
+    ]
+}
