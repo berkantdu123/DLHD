@@ -1,0 +1,41 @@
+[
+    {
+        "iconUrl": "https://upload.wikimedia.org/wikipedia/commons/2/2f/Korduene_Logo.png",
+        "apiVersion": 1,
+        "repositoryUrl": "https://github.com/berkantdu123/DLHD",
+        "fileSize": 26589,
+        "status": 1,
+        "language": "en",
+        "authors": [
+            "X"
+        ],
+        "tvTypes": [
+            "Live"
+        ],
+        "version": 1,
+        "internalName": "DaddyLiveProvider",
+        "description": "DaddyLive V2 - Live TV streaming",
+        "url": "https://raw.githubusercontent.com/berkantdu123/DLHD/builds/DaddyLiveProvider.cs3",
+        "name": "DaddyLiveProvider"
+    },
+    {
+        "iconUrl": "https://upload.wikimedia.org/wikipedia/commons/2/2f/Korduene_Logo.png",
+        "apiVersion": 1,
+        "repositoryUrl": "https://github.com/berkantdu123/DLHD",
+        "fileSize": 7311,
+        "status": 1,
+        "language": "en",
+        "authors": [
+            "Cloudburst",
+            "Luna712"
+        ],
+        "tvTypes": [
+            "Movie"
+        ],
+        "version": 1,
+        "internalName": "ExampleProvider",
+        "description": "Lorem ipsum",
+        "url": "https://raw.githubusercontent.com/berkantdu123/DLHD/builds/ExampleProvider.cs3",
+        "name": "ExampleProvider"
+    }
+]
