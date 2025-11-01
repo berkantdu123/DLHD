@@ -241,6 +241,8 @@ class DaddyLiveProvider : MainAPI() { // All providers must be an instance of Ma
 
     private suspend fun resolveLink(url: String): String? {
         try {
+            sharedHeaders["Referer"] = "$baseUrl/"
+            sharedHeaders["Origin"] = "$baseUrl/"
             val php = url.substringAfterLast('/')
             val candidates = mutableListOf<String>()
             if (php.endsWith(".php")) {
@@ -353,28 +355,49 @@ class DaddyLiveProvider : MainAPI() { // All providers must be an instance of Ma
         return null
     }
 
+    private fun updateHeaders(referer: String?): Pair<MutableMap<String, String>, String?> {
+        val newReferer = referer?.takeIf { it.isNotBlank() }
+        if (newReferer != null) {
+            sharedHeaders["Referer"] = newReferer
+            sharedHeaders["Origin"] = newReferer
+        }
+        if (!sharedHeaders.containsKey("Referer")) {
+            sharedHeaders["Referer"] = "$baseUrl/"
+        }
+        if (!sharedHeaders.containsKey("Origin")) {
+            sharedHeaders["Origin"] = "$baseUrl/"
+        }
+        return sharedHeaders to sharedHeaders["Referer"]
+    }
+
     private suspend fun getWithHeaders(
         url: String,
         referer: String? = null,
         timeout: Int = 30
-    ) = app.get(
-        url,
-        referer = sharedHeaders.apply {
-            val ref = referer?.ifBlank { null }
-            if (ref != null) {
-                this["Referer"] = ref
-                this["Origin"] = ref
+    ) {
+        val (headers, effectiveReferer) = updateHeaders(referer)
+        val timeoutMs = timeout.toLong()
+        return runCatching {
+            app.get(
+                url,
+                referer = effectiveReferer,
+                headers = headers,
+                timeout = timeoutMs
+            )
+        }.getOrElse { error ->
+            if (url.startsWith("https://")) {
+                val fallbackUrl = "http://" + url.removePrefix("https://")
+                app.get(
+                    fallbackUrl,
+                    referer = effectiveReferer,
+                    headers = headers,
+                    timeout = timeoutMs
+                )
+            } else {
+                throw error
             }
-            if (!this.containsKey("Referer")) {
-                this["Referer"] = "$baseUrl/"
-            }
-            if (!this.containsKey("Origin")) {
-                this["Origin"] = "$baseUrl/"
-            }
-        }["Referer"],
-        headers = sharedHeaders,
-        timeout = timeout.toLong()
-    )
+        }
+    }
 
     private suspend fun buildExtractorLink(displayName: String, resolved: String): ExtractorLink {
         val (streamUrl, extraHeaders) = splitResolvedLink(resolved)
@@ -383,6 +406,7 @@ class DaddyLiveProvider : MainAPI() { // All providers must be an instance of Ma
         val refererHeader = headerMap["Referer"] ?: "$baseUrl/"
         headerMap.putIfAbsent("Referer", refererHeader)
         headerMap.putIfAbsent("Origin", refererHeader)
+        headerMap.putIfAbsent("Connection", "Keep-Alive")
         return newExtractorLink(
             source = this.name,
             name = displayName,
