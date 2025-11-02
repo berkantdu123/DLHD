@@ -401,7 +401,7 @@ class DaddyLiveProvider : MainAPI() { // All providers must be an instance of Ma
     }
 
     private suspend fun buildExtractorLink(displayName: String, resolved: String): ExtractorLink {
-        // Keep the raw header fragment produced by the Kodi plugin logic so we replicate 1:1
+    // Keep the raw header fragment produced by the Kodi plugin logic so we replicate 1:1
     val (streamUrl, rawHeaderFragment) = splitResolvedLink(resolved)
         // Ensure there is a referer value available for the ExtractorLink.referer field
         val refererHeader = when {
