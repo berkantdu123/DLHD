@@ -7,6 +7,7 @@ import com.lagradost.cloudstream3.utils.Qualities
 import com.lagradost.cloudstream3.utils.loadExtractor
 import com.lagradost.cloudstream3.utils.newExtractorLink
 import org.jsoup.Jsoup
+import android.util.Log
 import android.util.Base64
 import java.net.URLEncoder
 import org.json.JSONObject
@@ -400,39 +401,39 @@ class DaddyLiveProvider : MainAPI() { // All providers must be an instance of Ma
     }
 
     private suspend fun buildExtractorLink(displayName: String, resolved: String): ExtractorLink {
-        val (streamUrl, extraHeaders) = splitResolvedLink(resolved)
-        val headerMap = extraHeaders.toMutableMap()
-        headerMap.putIfAbsent("User-Agent", userAgent)
-        val refererHeader = headerMap["Referer"] ?: "$baseUrl/"
-        headerMap.putIfAbsent("Referer", refererHeader)
-        headerMap.putIfAbsent("Origin", refererHeader)
-        headerMap.putIfAbsent("Connection", "Keep-Alive")
+        // Keep the raw header fragment produced by the Kodi plugin logic so we replicate 1:1
+        val (streamUrl, rawHeaderFragment) = splitResolvedLink(resolved)
+        // Ensure there is a referer value available for the ExtractorLink.referer field
+        val refererHeader = when {
+            rawHeaderFragment.isNotBlank() -> {
+                // Try to extract Referer value from the raw fragment without re-ordering
+                Regex("Referer=([^&]+)").find(rawHeaderFragment)?.groups?.get(1)?.value ?: "$baseUrl/"
+            }
+            else -> "$baseUrl/"
+        }
 
-        // Return ExtractorLink with explicit headers set so CloudStream will use them
+        val fullUrl = if (rawHeaderFragment.isBlank()) streamUrl else "$streamUrl|$rawHeaderFragment"
+
+        Log.d("DaddyLiveProvider", "Returning ExtractorLink url=$fullUrl referer=$refererHeader")
+
         return newExtractorLink(
             source = this.name,
             name = displayName,
-            url = streamUrl,
+            url = fullUrl,
             type = ExtractorLinkType.M3U8
         ) {
             this.referer = refererHeader
             this.quality = Qualities.Unknown.value
-            this.headers = headerMap.toMap()
+            // Leave headers empty so the raw fragment is used exactly as the Kodi plugin does
+            this.headers = emptyMap()
         }
     }
 
-    private fun splitResolvedLink(resolved: String): Pair<String, Map<String, String>> {
+    // Return the raw header fragment (unparsed) so we preserve exact ordering and formatting
+    private fun splitResolvedLink(resolved: String): Pair<String, String> {
         val segments = resolved.split("|", limit = 2)
-        if (segments.size == 1) return segments[0] to emptyMap()
-        val headers = mutableMapOf<String, String>()
-        segments[1].split("&").forEach { fragment ->
-            if (fragment.isBlank()) return@forEach
-            val kv = fragment.split("=", limit = 2)
-            if (kv.size == 2) {
-                headers[kv[0]] = kv[1]
-            }
-        }
-        return segments[0] to headers
+        if (segments.size == 1) return segments[0] to ""
+        return segments[0] to segments[1]
     }
 
     private fun base64Decode(str: String): String {
