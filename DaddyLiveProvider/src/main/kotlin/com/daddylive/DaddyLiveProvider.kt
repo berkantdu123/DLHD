@@ -412,8 +412,7 @@ class DaddyLiveProvider : MainAPI() { // All providers must be an instance of Ma
             else -> "$baseUrl/"
         }
 
-    var effectiveStreamUrl = streamUrl
-    var fullUrl = if (rawHeaderFragment.isBlank()) effectiveStreamUrl else "$effectiveStreamUrl|$rawHeaderFragment"
+        var fullUrl = if (rawHeaderFragment.isBlank()) streamUrl else "$streamUrl|$rawHeaderFragment"
 
         // Parse the raw fragment into a header map so CloudStream's HTTP client gets explicit headers
         val headerMap = mutableMapOf<String, String>()
@@ -434,16 +433,14 @@ class DaddyLiveProvider : MainAPI() { // All providers must be an instance of Ma
 
         // Probe the stream URL from provider side to verify server accepts our headers.
         try {
-            val probeResp = app.get(effectiveStreamUrl, referer = refererHeader, headers = headerMap, timeout = 10000L)
+            val probeResp = app.get(streamUrl, referer = refererHeader, headers = headerMap, timeout = 10000L)
             Log.d("DaddyLiveProvider", "Probe ok len=${probeResp.text.length} body=${probeResp.text.take(1024)}")
         } catch (e: Exception) {
             val sslIssue = e is javax.net.ssl.SSLException || e.cause is javax.net.ssl.SSLException
-            if (sslIssue && effectiveStreamUrl.startsWith("https://")) {
-                val httpFallback = "http://" + effectiveStreamUrl.removePrefix("https://")
+            if (sslIssue && streamUrl.startsWith("https://")) {
+                val httpFallback = "http://" + streamUrl.removePrefix("https://")
                 try {
                     val probeResp = app.get(httpFallback, referer = refererHeader, headers = headerMap, timeout = 10000L)
-                    effectiveStreamUrl = httpFallback
-                    fullUrl = if (rawHeaderFragment.isBlank()) effectiveStreamUrl else "$effectiveStreamUrl|$rawHeaderFragment"
                     Log.d(
                         "DaddyLiveProvider",
                         "Probe ok via http fallback len=${probeResp.text.length} body=${probeResp.text.take(1024)}"
@@ -456,7 +453,7 @@ class DaddyLiveProvider : MainAPI() { // All providers must be an instance of Ma
             }
         }
 
-        Log.d("DaddyLiveProvider", "Returning ExtractorLink url=$fullUrl referer=$refererHeader headers=$headerMap")
+    Log.d("DaddyLiveProvider", "Returning ExtractorLink url=$fullUrl referer=$refererHeader headers=$headerMap")
 
         return newExtractorLink(
             source = this.name,
