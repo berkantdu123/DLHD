@@ -401,8 +401,9 @@ class DaddyLiveProvider : MainAPI() { // All providers must be an instance of Ma
     }
 
     private suspend fun buildExtractorLink(displayName: String, resolved: String): ExtractorLink {
-    // Keep the raw header fragment produced by the Kodi plugin logic so we replicate 1:1
-    val (streamUrl, rawHeaderFragment) = splitResolvedLink(resolved)
+        // Keep the raw header fragment produced by the Kodi plugin logic so we replicate 1:1
+        val (initialStreamUrl, rawHeaderFragment) = splitResolvedLink(resolved)
+
         // Ensure there is a referer value available for the ExtractorLink.referer field
         val refererHeader = when {
             rawHeaderFragment.isNotBlank() -> {
@@ -411,8 +412,6 @@ class DaddyLiveProvider : MainAPI() { // All providers must be an instance of Ma
             }
             else -> "$baseUrl/"
         }
-
-        var fullUrl = if (rawHeaderFragment.isBlank()) streamUrl else "$streamUrl|$rawHeaderFragment"
 
         // Parse the raw fragment into a header map so CloudStream's HTTP client gets explicit headers
         val headerMap = mutableMapOf<String, String>()
@@ -431,20 +430,23 @@ class DaddyLiveProvider : MainAPI() { // All providers must be an instance of Ma
         headerMap.putIfAbsent("Origin", refererHeader)
         headerMap.putIfAbsent("Connection", "Keep-Alive")
 
+        var streamUrlToUse = initialStreamUrl
+
         // Probe the stream URL from provider side to verify server accepts our headers.
         try {
-            val probeResp = app.get(streamUrl, referer = refererHeader, headers = headerMap, timeout = 10000L)
-            Log.d("DaddyLiveProvider", "Probe ok len=${probeResp.text.length} body=${probeResp.text.take(1024)}")
+            val probeResp = app.get(streamUrlToUse, referer = refererHeader, headers = headerMap, timeout = 10000L)
+            Log.d("DaddyLiveProvider", "Probe ok len=${probeResp.text.length} body=${probeResp.text.take(256)}")
         } catch (e: Exception) {
             val sslIssue = e is javax.net.ssl.SSLException || e.cause is javax.net.ssl.SSLException
-            if (sslIssue && streamUrl.startsWith("https://")) {
-                val httpFallback = "http://" + streamUrl.removePrefix("https://")
+            if (sslIssue && streamUrlToUse.startsWith("https://")) {
+                val httpFallback = "http://" + streamUrlToUse.removePrefix("https://")
                 try {
                     val probeResp = app.get(httpFallback, referer = refererHeader, headers = headerMap, timeout = 10000L)
                     Log.d(
                         "DaddyLiveProvider",
-                        "Probe ok via http fallback len=${probeResp.text.length} body=${probeResp.text.take(1024)}"
+                        "Probe ok via http fallback len=${probeResp.text.length} body=${probeResp.text.take(256)}"
                     )
+                    streamUrlToUse = httpFallback
                 } catch (fallbackError: Exception) {
                     Log.d("DaddyLiveProvider", "Probe failed after http fallback: ${fallbackError.message}")
                 }
@@ -453,7 +455,9 @@ class DaddyLiveProvider : MainAPI() { // All providers must be an instance of Ma
             }
         }
 
-    Log.d("DaddyLiveProvider", "Returning ExtractorLink url=$fullUrl referer=$refererHeader headers=$headerMap")
+        val fullUrl = if (rawHeaderFragment.isBlank()) streamUrlToUse else "$streamUrlToUse|$rawHeaderFragment"
+
+        Log.d("DaddyLiveProvider", "Returning ExtractorLink url=$fullUrl referer=$refererHeader headers=$headerMap")
 
         return newExtractorLink(
             source = this.name,
