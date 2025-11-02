@@ -257,14 +257,14 @@ class DaddyLiveProvider : MainAPI() { // All providers must be an instance of Ma
 
             for (candidate in candidates) {
                 try {
-                    val resp = getWithHeaders(candidate, timeout = 30)
+                    val resp = getWithHeaders(candidate, timeout = 30L)
                     val soup = Jsoup.parse(resp.text)
                     val iframe = soup.selectFirst("iframe#thatframe, iframe.video, iframe") ?: continue
                     var url2 = iframe.attr("src")
 
                     // Follow wrappers (lovecdn/wikisport)
                     if (url2.contains("wikisport") || url2.contains("lovecdn")) {
-                        val r2 = getWithHeaders(url2, referer = candidate, timeout = 60)
+                        val r2 = getWithHeaders(url2, referer = candidate, timeout = 60L)
                         val s2 = Jsoup.parse(r2.text)
                         val iframe2 = s2.selectFirst("iframe") ?: continue
                         url2 = iframe2.attr("src")
@@ -373,10 +373,10 @@ class DaddyLiveProvider : MainAPI() { // All providers must be an instance of Ma
     private suspend fun getWithHeaders(
         url: String,
         referer: String? = null,
-        timeout: Int = 30
-    ) {
+        timeout: Long = 30L
+    ): com.lagradost.nicehttp.NiceResponse {
         val (headers, effectiveReferer) = updateHeaders(referer)
-        val timeoutMs = timeout.toLong()
+        val timeoutMs = timeout
         return runCatching {
             app.get(
                 url,
@@ -387,7 +387,7 @@ class DaddyLiveProvider : MainAPI() { // All providers must be an instance of Ma
         }.getOrElse { error ->
             if (url.startsWith("https://")) {
                 val fallbackUrl = "http://" + url.removePrefix("https://")
-                app.get(
+                return app.get(
                     fallbackUrl,
                     referer = effectiveReferer,
                     headers = headers,
