@@ -407,15 +407,17 @@ class DaddyLiveProvider : MainAPI() { // All providers must be an instance of Ma
         headerMap.putIfAbsent("Referer", refererHeader)
         headerMap.putIfAbsent("Origin", refererHeader)
         headerMap.putIfAbsent("Connection", "Keep-Alive")
+        val headerString = headerMap.map { "${it.key}=${it.value}" }.joinToString("&")
+        val fullUrl = "$streamUrl|$headerString"
         return newExtractorLink(
             source = this.name,
             name = displayName,
-            url = streamUrl,
+            url = fullUrl,
             type = ExtractorLinkType.M3U8
         ) {
             this.referer = refererHeader
             this.quality = Qualities.Unknown.value
-            this.headers = headerMap.toMap()
+            this.headers = emptyMap()
         }
     }
 
