@@ -407,17 +407,17 @@ class DaddyLiveProvider : MainAPI() { // All providers must be an instance of Ma
         headerMap.putIfAbsent("Referer", refererHeader)
         headerMap.putIfAbsent("Origin", refererHeader)
         headerMap.putIfAbsent("Connection", "Keep-Alive")
-        val headerString = headerMap.map { "${it.key}=${it.value}" }.joinToString("&")
-        val fullUrl = "$streamUrl|$headerString"
+
+        // Return ExtractorLink with explicit headers set so CloudStream will use them
         return newExtractorLink(
             source = this.name,
             name = displayName,
-            url = fullUrl,
+            url = streamUrl,
             type = ExtractorLinkType.M3U8
         ) {
             this.referer = refererHeader
             this.quality = Qualities.Unknown.value
-            this.headers = emptyMap()
+            this.headers = headerMap.toMap()
         }
     }
 
